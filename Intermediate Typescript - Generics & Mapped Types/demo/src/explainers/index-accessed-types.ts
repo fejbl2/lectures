@@ -16,3 +16,5 @@ interface Orange {
 type Fruit = Apple | Orange;
 
 type FruitColor = Fruit["color"];
+
+type Whaaat = User[keyof User];
