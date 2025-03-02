@@ -1,9 +1,8 @@
 import { Order } from "./models";
-import { Rule } from "./solution/04-try";
 import { validateObject } from "./validator";
 
 export const validateOrder = async (order: Order) => {
-  const rules: Rule<Order>[] = [
+  const rules = [
     {
       field: "createdAt",
       func: async (val) => {
