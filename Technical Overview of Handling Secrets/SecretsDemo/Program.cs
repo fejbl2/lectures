@@ -1,0 +1,2 @@
+﻿HardcodedSecrets.ConnectToDatabase();
+
