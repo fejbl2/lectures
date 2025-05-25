@@ -9,9 +9,6 @@ public static class HardcodedSecrets
     public static void ConnectToDatabase()
     {
         string connectionString = GetCnnString();
-        // Here you would typically use the connection string to connect to a database
-        // For example, using ADO.NET or Entity Framework
-        // This is just a placeholder for demonstration purposes
-        Console.WriteLine("Connecting to database with connection string: " + connectionString);
+        Console.WriteLine("Connecting to database with hardcoded connection string: " + connectionString);
     }
 }
