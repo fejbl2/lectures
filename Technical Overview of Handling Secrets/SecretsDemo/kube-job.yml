@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: secrets-demo-job
+  namespace: default
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    spec:
+      securityContext:
+        runAsUser: 33
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: "OnRootMismatch"
+        runAsNonRoot: true
+      containers:
+        - name: secrets-demo
+          image: secrets-test:latest
+          imagePullPolicy: Never
+          env:
+            - name: DB_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: secrets-demo-db
+                  key: DB_CONNECTION_STRING
+          volumeMounts:
+            - name: secrets-volume
+              mountPath: /app/secrets
+              readOnly: true
+          securityContext:
+            runAsUser: 33
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: secrets-volume
+          secret:
+            secretName: secrets-demo-db
+      restartPolicy: Never

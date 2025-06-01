@@ -5,6 +5,8 @@ IConfigurationRoot config = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
     .Build();
 
+Console.WriteLine("----------------------------------------");
+
 HardcodedSecrets.ConnectToDatabase();
 
 Console.WriteLine("----------------------------------------");
@@ -13,6 +15,13 @@ SecretsFromAppsettings.ConnectToDatabase(config);
 
 Console.WriteLine("----------------------------------------");
 
-SecretFromDocker.ConnectToDatabase();
+SecretFromEnvVar.ConnectToDatabase();
 
 Console.WriteLine("----------------------------------------");
+
+SecretFromMount.PrintSecrets();
+
+Console.WriteLine("----------------------------------------");
+
+// Wait for a lot of time (100min) before exiting for demo purposes
+Thread.Sleep(100 * 60 * 1000);
