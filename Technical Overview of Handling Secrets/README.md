@@ -21,6 +21,18 @@ then it has extreme consequences.
 - ❌ When deploying, must modify source code and rebuild
 - ❌ Bots will scan and reveal your secrets in no-time
 
+## A bit of theory
+
+If we don't hardcode the secrets in the executable, it has to read the values from **somewhere**.
+This "somewhere" is something external to the program.
+
+There are a few options for what exactly that might be:
+
+- Files on the disk
+- Environment variables
+- Network calls
+- ... (other erratic methods like measuring the CPU load, and interpreting the numbers somehow)
+
 ## Using .env files (or alike appsettings.json)
 
 - ✅ same binary, just supply a different .env file
@@ -99,18 +111,46 @@ Demo:
 - `kubectl get pods` (find out the pod name)
 - `kubectl logs job/secrets-demo-job` (read the logs of the job)
 
+### Side-note: Kubernetes ServiceAccount
+
+- Pods can have their identity "managed" by the kubernetes cluster
+- Kubernetes mounts and rotates a JWT token
+- The pod can use the token to authenticate against the Kubernetes API Server
+- More [docs here](https://kubernetes.io/docs/concepts/security/service-accounts/)
+
 ## Using an external Key Vault
 
 [example: Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/basic-concepts).
 
-- ✅ Secret rotation
-- ✅ Audit log
+- ✅ Secret rotation (if supported and configured)
+- ✅ Audit log (if supported and configured)
 - ❌ Need to authenticate (...with a secret)
 
 Usually, this is what mid-sized serious companies with production-ready products use.
 
-Demo: TODO
+Demo:
 
-## Password-less: kubernetes service accounts
+- under my personal Microtoft account (robert.gemrot@centrum.cz)
+- Created an [app registration in Entra ID](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Overview/quickStartType~/null/sourceType/Microsoft_AAD_IAM/appId/a793e411-ecb3-420a-a91e-5af88bda0c3b/objectId/ae113734-245f-419d-8805-468d3aff9f08/isMSAApp~/false/defaultBlade/Overview/appSignInAudience/AzureADMyOrg/servicePrincipalCreated~/true)
+- Assigned a Key Vault Secrets User role to the service principal - [here > Role assignments](https://portal.azure.com/#@robertgemrotcentrum.onmicrosoft.com/resource/subscriptions/8f3fcec5-108b-4c17-bcce-c0a4f79b8944/resourceGroups/devops-demo/providers/Microsoft.KeyVault/vaults/vault-devops-demo/users)
+- Created the [secret itself](https://portal.azure.com/#@robertgemrotcentrum.onmicrosoft.com/resource/subscriptions/8f3fcec5-108b-4c17-bcce-c0a4f79b8944/resourceGroups/devops-demo/providers/Microsoft.KeyVault/vaults/vault-devops-demo/secrets)
+- in [source code](./SecretsDemo/SecretFromKeyVault.cs), fill in the `client_secret`
 
-Can be used if pods need to authenticate against each other, in the same kube cluster.
+## Password-less: Azure managed identity
+
+By hosting an app in the cloud, we can offload managing the identity to the cloud provider.
+
+- ✅ No secrets in _our code_
+- ✅ Easy integration with other apps _of the same cloud provider_
+- ❌ Not all technology stacks support this
+
+Demo:
+
+- under my school Microtoft account (525262@muni.cz)
+- [PA200-HW02 > github-actions](https://portal.azure.com/#@UCNMUNI.onmicrosoft.com/resource/subscriptions/83aa7f25-afa6-4435-a170-acc5294000f4/resourceGroups/PA200-HW02/overview) managed identity
+- The managed identity [has some roles](https://portal.azure.com/#@UCNMUNI.onmicrosoft.com/resource/subscriptions/83aa7f25-afa6-4435-a170-acc5294000f4/resourceGroups/PA200-HW02/providers/Microsoft.ManagedIdentity/userAssignedIdentities/github-actions/azure_resources)
+- Its [federated credentials](https://portal.azure.com/#@UCNMUNI.onmicrosoft.com/resource/subscriptions/83aa7f25-afa6-4435-a170-acc5294000f4/resourceGroups/PA200-HW02/providers/Microsoft.ManagedIdentity/userAssignedIdentities/github-actions/federatedcredentials) point to a Github repo
+- The [CI/CD pipeline](https://github.com/fejbl2/train-me-maybe/blob/pa200/.github/workflows/build-pa200.yaml) uses it
+- [More docs](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-identity)
+
+Note that there are always some secrets involved. The "managed identity" only abstracts us away from having to manage them.
