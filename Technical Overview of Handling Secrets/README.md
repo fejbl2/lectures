@@ -4,6 +4,7 @@ I presented this lecture at the meetup of the DevOps community
 on 25. 6. 2025 in Prague.
 
 [Link to event](https://www.meetup.com/prague-devops-meetup/events/307952279/)
+[Fallback link to event](https://web.archive.org/web/20250608170009/https://www.meetup.com/prague-devops-meetup/events/307952279/)
 
 ## Motivation
 
