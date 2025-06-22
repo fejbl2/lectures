@@ -3,17 +3,20 @@
 I presented this lecture at the meetup of the DevOps community
 on 25. 6. 2025 in Prague.
 
-[Link to event](https://www.meetup.com/prague-devops-meetup/events/307952279/)
-[Fallback link to event](https://web.archive.org/web/20250608170009/https://www.meetup.com/prague-devops-meetup/events/307952279/)
+[Link to event](https://www.meetup.com/prague-devops-meetup/events/307952279/) (fallback [here](https://web.archive.org/web/20250608170009/https://www.meetup.com/prague-devops-meetup/events/307952279/)).
+
+## Shoutout
+
+I prepared this lecture with the help of [Metio Software](https://www.metiosoftware.cz/).
 
 ## Motivation
 
-Secrets are everywhere. Whenever we want to establish trust between
-two systems, secrets will be involved in some form. Almost every application
-works with users (and therefore secrets) in some form.
+Secrets are everywhere. You might be thinking user accounts and storing their passwords.
+But that won't be our focus today. Instead, we will want to establish trust between
+two systems - think connecting to a dababase from your application with a connection string.
 
 For a developer, it can be confusing to understand all the details
-of how to properly handle secrets in their application. But if they don't,
+of how to properly handle these kinds of secrets in their application. But if they don't,
 then it has extreme consequences.
 
 ## First idea - just hardcode the secrets
@@ -32,7 +35,7 @@ There are a few options for what exactly that might be:
 - Files on the disk
 - Environment variables
 - Network calls
-- ... (other erratic methods like measuring the CPU load, and interpreting the numbers somehow)
+- ... (other methods like specialized hardware, or even something as erratic as measuring the CPU load, and interpreting the numbers as ASCII)
 
 ## Using .env files (or alike appsettings.json)
 
@@ -56,7 +59,8 @@ Options are environment variables or files. Both are bad.
 Demo:
 
 - `docker build -t secrets-test . --build-arg DB_CONNECTION_STRING="secret"`
-- `docker run --cap-drop=all --entrypoint /bin/sleep secrets-test 100000000`
+- `docker image inspect secrets-test | findstr DB_CONNECTION_STRING`
+- alternative: `docker run --cap-drop=all --entrypoint /bin/sleep secrets-test 100000000`
   - inspect that `env` command will contain the baked in secret
 
 ### Side note: Build secrets vs. runtime secrets

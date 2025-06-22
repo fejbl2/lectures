@@ -5,6 +5,10 @@ on 12. 3. 2025 in Brno.
 
 [Link to event](https://www.meetup.com/frontendisti/events/306253481/)
 
+## Shoutout
+
+I prepared this lecture with the help of [Metio Software](https://www.metiosoftware.cz/).
+
 ## Motivation
 
 You have existing custom validation code, with no type annotations,
