@@ -1,0 +1,123 @@
+# About this lecture
+
+I presented this lecture at the meetup of the DevOps community
+on 2. 12. 2025 in Prague.
+
+[Link to event](https://www.meetup.com/prague-devops-meetup/events/311867941/) (fallback [here](https://web.archive.org/web/20251106180202/https://www.meetup.com/prague-devops-meetup/events/311867941/)).
+
+## How it started
+
+On Monday everything works.
+
+On Tuesday, we are getting first reports of "stuck automatic login" but we cannot reproduce it.
+
+On Wednesday, more reports follow.
+
+On Thursday, autologin is stuck for nearly everybody at the company.
+
+What? How?
+
+## Azure MSAL browser library
+
+For automatic login, we use a library [@azure/msal-browser](https://github.com/AzureAD/microsoft-authentication-library-for-js/tree/dev/lib/msal-browser)
+in the latest version [4.26.0](https://www.npmjs.com/package/@azure/msal-browser/v/4.26.0).
+
+First, we try to log the user in automatically using [ssoSilent function](https://github.com/AzureAD/microsoft-authentication-library-for-js/blob/dev/lib/msal-browser/docs/login-user.md#silent-login-with-ssosilent). We expect the login to either work, or fail fast.
+
+As a secondary means, we let the user to click a button to trigger the [loginPopup](https://github.com/AzureAD/microsoft-authentication-library-for-js/blob/dev/lib/msal-browser/docs/login-user.md#login-the-user).
+
+## Demo time
+
+Run the [demo app](./single-sign-on-demo/) locally, and show that the button is stuck in the "trying" state for a very long time.
+
+## Diagnostic
+
+First, we added logging. We get a not-so-helpful error from MSAL:
+
+```
+ssoSilent error: BrowserAuthError: monitor_window_timeout: Token acquisition in iframe failed due to timeout. For more visit: aka.ms/msaljs/browser-errors
+```
+
+In the network tab, we also get a weird network request failure due to CORS.
+
+TODO CORS issue
+
+So I spent about a day chasing a duck: I knew what CORS meant, and that the root cause _must_ be our server's configuration issue
+(sending wrong HTTP headers). This CORS issue was by far the most misleading part.
+
+But it turns out, CORS was no issue at all. By coincidence, a colleague was reading release notes of Chrome v142 and remembered that there was
+a [new security feature](https://developer.chrome.com/release-notes/142#local_network_access_restrictions).
+
+> Note: Modern browsers (from v142.0.7444.60): instead of a weird CORS, they show a nice console error:
+
+```
+Unsafe attempt to initiate navigation for frame with origin ... from frame with URL ... The frame attempting navigation of the top-level window is sandboxed, but the flag of 'allow-top-navigation' or 'allow-top-navigation-by-user-activation' is not set.
+```
+
+## The root cause
+
+A new browser feature - [Local network access restrictions](https://chromestatus.com/feature/5152728072060928).
+
+When a website has a public IP address, it cannot make any requests to any private IP addresses.
+
+But how does this all relate to our autologin feature?
+
+## Behind the scenes
+
+After reading a good amount of docs, I still did not know how `ssoSilent` works internally. So I started reading the source code of @azure/msal-browser.
+
+First, `ssoSilent` [creates a hidden iframe](TODO). The iframe points to [login.microsoftonline.com/.../authorize?...](https://login.microsoftonline.com/0b3e20b1-66a9-4a2e-8a1e-ac184cf6926d/oauth2/v2.0/authorize?client_id=814ba715-6611-4ab3-ae98-986378c48ef8&scope=User.Read%20openid%20profile%20offline_access&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Flogin-landing.html&client-request-id=019a5aae-ce11-7d81-a69e-4ee2db0261e6&response_mode=fragment&client_info=1&prompt=none&nonce=019a5aae-ce14-7621-ab55-ecafb38858d3&state=eyJpZCI6IjAxOWE1YWFlLWNlMTEtN2VjNS04NTAwLWExNjEzMTQ4OWUxZSIsIm1ldGEiOnsiaW50ZXJhY3Rpb25UeXBlIjoic2lsZW50In19&x-client-SKU=msal.js.browser&x-client-VER=4.26.0&response_type=code&code_challenge=5WmnpP4_CC-qKoBgSuJUMQw-XPxxzuPrHGXUjocUhFI&code_challenge_method=S256).
+
+Then, `ssoSilent` [begins to regularly check](TODO) - by [polling](<https://en.wikipedia.org/wiki/Polling_(computer_science)>) - the URL at which
+the iframe currently is.
+
+In the meantime, the iframe does its thing. After making a request to the [login.microsoftonline.com](login.microsoftonline.com), the iframe is redirected to the specified [redirectUri](./single-sign-on-demo/src/msalUtils.ts). The iframe tries to load the page.
+
+But that's when the browser says `Oh I don't think so`. The [login.microsoftonline.com](login.microsoftonline.com) resolves to a **public** IP adress, whereas the [redirectUri](http://localhost:5173/login-landing.html) is on
+the local network. So, we get a weird CORS error - or in the better case, a proper error message in the console.
+
+Let me stress out once again how confusing the CORS error was. Usually, CORS errors are about your webserver, which doesn't send proper `Access-Control-Allow-Origin`
+HTTP header. The browser is then like `Hmm, the author of the webserver doesn't want his content to be shared with other domains. OK, I will block it.`
+But this one - it is completely different. The browser **did not** even **make** the request. So I naturally thought, `Hmm, it must be some OPTIONS requests.
+Maybe they are cached?`...
+
+Getting back to how the library works - if the redirect passses, then the URL of the iframe is changed. The `ssoSilent` function reads the URL, especially
+its fragment part (behind the `#`). That is where the important information is placed.
+
+But if nothing happens [for 10 seconds](TODO), the `ssoSilent` just gives up and says `monitor_window_timeout: Hmm, it must be some browser-infra issue`.
+
+## How to mitigate
+
+Fail fast - decrease the timeout before the library gives up on monitoring the iframe.
+
+```ts
+const msalInstance = new PublicClientApplication({
+  // ... other fields
+  system: { iframeHashTimeout: 2000 },
+});
+```
+
+## The resolution
+
+Basically need to wait for upstream libraries.
+
+[Github issue](https://github.com/AzureAD/microsoft-authentication-library-for-js/issues/8100).
+[Pull request](https://github.com/AzureAD/microsoft-authentication-library-for-js/pull/8132).
+
+Funnily enough, the upstream _thought_ they fixed it. And the fix was very simple. That is, if you know all the details.
+
+```ts
+authFrame.setAttribute("allow", "local-network-access *");
+```
+
+Compare the generated iframes: [iframe v4.26.0](./single-sign-on-demo/src/iframe-v4.26.0.html) vs. [iframe v4.26.1](./single-sign-on-demo/src/iframe-v4.26.1.html)
+
+But the same error occurs 😂.
+
+This is because the generated iframes contain the **sandbox** attribute, which hardens the security, but disables redirecting oneself into another origin (domain).
+
+## Keywords
+
+ssoSilent error, BrowserAuthError, monitor_window_timeout, local-network-access,
+
+TODO tooltip hlaska
