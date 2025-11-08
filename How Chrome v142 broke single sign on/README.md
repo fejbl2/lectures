@@ -60,7 +60,9 @@ Note:
 Unsafe attempt to initiate navigation for frame with origin ... from frame with URL ... The frame attempting navigation of the top-level window is sandboxed, but the flag of 'allow-top-navigation' or 'allow-top-navigation-by-user-activation' is not set.
 ```
 
-- on Windows Chrome [142.0.7444.135](https://chromium.googlesource.com/chromium/src/+/refs/tags/142.0.7444.135), the `ssoSilent` works without any problems whatsoever. The [commit diff](https://chromium.googlesource.com/chromium/src/+log/142.0.7444.60..142.0.7444.135).
+- on Windows Chrome [142.0.7444.135](https://chromium.googlesource.com/chromium/src/+/refs/tags/142.0.7444.135), the `ssoSilent` mostly works. Sometimes not. The [commit diff](https://chromium.googlesource.com/chromium/src/+log/142.0.7444.60..142.0.7444.135).
+
+- related: [fishy chrome](#fishy-chrome)
 
 ## The root cause
 
@@ -69,6 +71,26 @@ A new browser feature - [Local network access restrictions](https://chromestatus
 When a website has a public IP address, it cannot make any requests to any private IP addresses.
 
 But how does this all relate to our autologin feature?
+
+## A bit of theory: OAuth2 Authorization Code flow with PKCE
+
+Great guides are [here](https://www.oauth.com/oauth2-servers/single-page-apps/) and [here](https://www.oauth.com/oauth2-servers/pkce/authorization-request/).
+
+1. Authorization request: GET [login.microsoftonline.com/.../authorize?](login.microsoftonline.com/.../authorize?)
+
+   - `response_type=code` ... please give me a code I can later exchange for an access token
+   - `response_mode=fragment` ... please put the code inside the URL fragment
+   - `code_challenge`, `code_challenge_method` ... PKCE - client generates & saves a `code_verifier` and sends `code_challenge=base64Url(sha256(code_verifier))`
+   - `client_id`, `scope`, `redirect_uri`, `state`
+
+1. Microsoft verifies cookie and redirects to the `redirect_uri#code=...&state=...`
+
+1. Exchange the `code` for an access token: POST [login.microsoftonline.com/.../token](login.microsoftonline.com/.../token)
+
+   - `grant_type=authorization_code`
+   - `code`
+   - `code_verivier` from earlier (loaded e.g. from session storage)
+   - `client_id`, `scope`, `redirect_uri`
 
 ## Behind the scenes
 
@@ -92,7 +114,7 @@ But this one - it is completely different. The browser **did not** even **make**
 Maybe they are cached?`...
 
 Getting back to how the library works - if the redirect passses, then the URL of the iframe is changed. The `ssoSilent` function reads the URL, especially
-its fragment part (behind the `#`). That is where the important information is placed.
+its fragment part (behind the `#`). That is where the important information (`code`) is placed. Then, it proceeds with exchaning the code for a token - POST [login.microsoftonline.com/.../token](https://login.microsoftonline.com/0b3e20b1-66a9-4a2e-8a1e-ac184cf6926d/oauth2/v2.0/token?client-request-id=...)
 
 But if nothing happens [for 10 seconds](https://github.com/AzureAD/microsoft-authentication-library-for-js/blob/fad431f4c2f8b67f4db30bfa73ac2aeb13c54641/lib/msal-browser/src/interaction_handler/SilentHandler.ts#L144), the `ssoSilent` just gives up and says `monitor_window_timeout: Hmm, it must be some browser-infra issue`.
 
@@ -114,7 +136,7 @@ Basically need to wait for upstream libraries.
 [Github issue](https://github.com/AzureAD/microsoft-authentication-library-for-js/issues/8100).
 [Pull request](https://github.com/AzureAD/microsoft-authentication-library-for-js/pull/8132).
 
-Funnily enough, the upstream _thought_ they fixed it. And the fix was very simple. That is, if you know all the details.
+The fix was very simple. That is, if you know all the details.
 
 ```ts
 authFrame.setAttribute("allow", "local-network-access *");
@@ -122,9 +144,17 @@ authFrame.setAttribute("allow", "local-network-access *");
 
 Compare the generated iframes: [iframe v4.26.0](./single-sign-on-demo/src/iframe-v4.26.0.html) vs. [iframe v4.26.1](./single-sign-on-demo/src/iframe-v4.26.1.html)
 
-But the same error occurs.
+The _v4.26.1_ usually asks for the user permission to access local networks.
 
-This is because the generated iframes contain the [**sandbox**](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe#sandbox) attribute, which hardens the security, but disables redirecting oneself into another origin (domain).
+But _sometimes_ the same error occurs. I do not know why - probably same reasons [as here](#fishy-chrome).
+
+## Company-wide solution
+
+We have internal applications. We don't want to force users to click "allow".
+
+Solution: [`LocalNetworkAccessAllowedForUrls` policy](https://chromeenterprise.google/policies/?policy=LocalNetworkAccessAllowedForUrls).
+
+This _should_ prevent the dialog. But when I tested it, the dialog was still present.
 
 ## Fishy Chrome
 
@@ -143,11 +173,11 @@ So far, so good. But then refresh the page and:
 1. **no 10s seconds** waiting (iframe navigates and main JS reads the fragment part)
 
 In other words, there is different behaviour in the first and subsequent requests. Which should probably not be happeninng.  
-I tried doing an [AI analysis](./AiChromiumAnalysis.md) of the releavant Chromium source code. But it felt like it is lying to me.
+I tried doing an [AI analysis](./AiChromiumAnalysis.md) of the releavant Chromium source code. But it mostly hallucinated.
 However, there must be _some_ issue.
 
-What is even more interesting - on 2025-11-06, the requests were always blocked. On 2025-11-08 (just two days later), this
-strange behaviour occured.
+What is even more interesting - with the same Chrome version, on 2025-11-06, the requests were always blocked. On 2025-11-08 (just two
+days later), this strange behaviour occured.
 
 <img src="always-dns.jpg" alt="It's always DNS" width="200"/>
 
