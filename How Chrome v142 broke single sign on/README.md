@@ -76,12 +76,15 @@ But how does this all relate to our autologin feature?
 
 Great guides are [here](https://www.oauth.com/oauth2-servers/single-page-apps/) and [here](https://www.oauth.com/oauth2-servers/pkce/authorization-request/).
 
+Microsoft-specific description [here](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
+
 1. Authorization request: GET [login.microsoftonline.com/.../authorize?](login.microsoftonline.com/.../authorize?)
 
    - `response_type=code` ... please give me a code I can later exchange for an access token
+   - `redirect_uri` ... this is how you can contact me back
    - `response_mode=fragment` ... please put the code inside the URL fragment
    - `code_challenge`, `code_challenge_method` ... PKCE - client generates & saves a `code_verifier` and sends `code_challenge=base64Url(sha256(code_verifier))`
-   - `client_id`, `scope`, `redirect_uri`, `state`
+   - `client_id`, `scope`, `state`
 
 1. Microsoft verifies cookie and redirects to the `redirect_uri#code=...&state=...`
 
