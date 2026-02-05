@@ -18,6 +18,4 @@ const CityForecast = ({
   );
 };
 
-// Question for audience: Will rendering this instead of CityForecast help with decreasing the render count?
 export default memo(CityForecast);
-// export default CityForecast;
