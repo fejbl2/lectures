@@ -19,7 +19,7 @@ export default function useSimpleOptimizedWeatherForecast(): UseForecastResult {
     const unsubscribe = subscribeForeast({
       type: "simple",
       callback: (newData) => {
-        const parsed = parseForecast(newData); // Called only once now
+        const parsed = parseForecast(newData);
 
         setData((prev) => {
           // Deep compare each item, if same, do not change the reference
