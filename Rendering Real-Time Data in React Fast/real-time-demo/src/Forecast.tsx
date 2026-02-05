@@ -2,12 +2,14 @@ import { useCallback, useRef } from "react";
 import CityForecast from "./CityForecast";
 import type { ForecastItem } from "./common";
 
+export type UseForecastResult = { items: ForecastItem[]; bytes: number };
+
 const makeForecast =
   ({
     name,
     useForecast,
   }: {
-    useForecast: () => ForecastItem[];
+    useForecast: () => UseForecastResult;
     name: string;
   }) =>
   () => {
@@ -20,11 +22,14 @@ const makeForecast =
         <div className="forecast-header">
           <h2 className="forecast-title">{name}</h2>
           <div className="render-count-badge">
-            Renders: {renderCount.current}
+            Renders (lagged by one): {renderCount.current}
+          </div>
+          <div className="render-count-badge">
+            Transferred total {data.bytes} bytes
           </div>
         </div>
         <div className="cities-grid">
-          {data.map((item) => (
+          {data.items.map((item) => (
             <CityForecast key={item.city} item={item} onRender={onRender} />
           ))}
         </div>

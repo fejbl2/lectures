@@ -2,7 +2,7 @@
 
 I presented this lecture at the meetup TODO.
 
-[Link to event](TODO) (fallback [here](TODO)).
+[Link to event](https://www.meetup.com/frontendisti/events/313093149/) (fallback [here](https://web.archive.org/web/20260205133623/https://www.meetup.com/frontendisti/events/313093149/)).
 
 ## Motivation
 
@@ -107,6 +107,8 @@ type DeleteMessage = { key: string };
 ## Backend for the delta protocol
 
 maybe not needed ?
+
+## TODO more sections
 
 ## Keywords
 

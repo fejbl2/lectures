@@ -5,11 +5,16 @@ import {
   UPDATE_INTERVAL_MS,
   type ForecastItem,
   type Message,
-  type Subsriber,
+  type Subscriber,
 } from "./common";
 
 const data: ForecastItem[] = createInitialForecast();
 let latestData = JSON.stringify(data);
+
+// Producer control state
+let intervalId: ReturnType<typeof setInterval> | null = null;
+let currentInterval = UPDATE_INTERVAL_MS;
+let isRunning = false;
 
 const updateForecast = () => {
   // takes a random item from data and updates its temperature
@@ -33,12 +38,41 @@ const updateForecast = () => {
   });
 };
 
-setInterval(updateForecast, UPDATE_INTERVAL_MS);
+// Producer control functions
+export const startProducer = () => {
+  if (!isRunning) {
+    intervalId = setInterval(updateForecast, currentInterval);
+    isRunning = true;
+  }
+};
 
-const subscribers: Subsriber[] = [];
+export const stopProducer = () => {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+    isRunning = false;
+  }
+};
+
+export const setUpdateInterval = (newInterval: number) => {
+  currentInterval = newInterval;
+  if (isRunning) {
+    stopProducer();
+    startProducer();
+  }
+};
+
+export const isProducerRunning = () => isRunning;
+export const getCurrentInterval = () => currentInterval;
+
+const subscribers: Subscriber[] = [];
 
 export const subscribeForeast = makeSubscribeForeast(subscribers);
 
 export const getForecastData = async (): Promise<string> => {
+  return latestData;
+};
+
+export const getForecastDataSync = (): string => {
   return latestData;
 };
