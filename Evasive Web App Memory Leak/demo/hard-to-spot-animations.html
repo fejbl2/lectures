@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evasive Web App Memory Leak Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        #leakButton {
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+
+        #leakContainer {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 200px;
+            overflow-y: scroll;
+        }
+
+        @keyframes colorChange {
+            0% {
+                background-color: white;
+            }
+
+            50% {
+                background-color: black;
+            }
+
+            100% {
+                background-color: white;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Evasive Web App Memory Leak Demo</h1>
+    <button id="leakButton">Start Memory Leak</button>
+    <div id="leakContainer"></div>
+    <div id="animationsContainer"></div>
+
+    <script>
+        const leakButton = document.getElementById('leakButton');
+        const leakContainer = document.getElementById('leakContainer');
+        const animationsContainer = document.getElementById('animationsContainer');
+
+        let clickedCount = 0;
+
+        leakButton.addEventListener('click', () => {
+            clickedCount++;
+
+            // setup - create divs which will be animated later
+            for (let i = 0; i < 50_000; i++) {
+                const div = document.createElement('div');
+                div.textContent = `Animated Div ${i + 1}`;
+                div.style.width = '100px';
+                div.style.height = '20px';
+                div.style.backgroundColor = '#f0f0f0';
+
+                animationsContainer.appendChild(div);
+
+            }
+
+            const divs = animationsContainer.querySelectorAll('div');
+            divs.forEach(div => {
+                // animate each divs color from white to black and back, once.
+                div.style.animation = `colorChange 1s 1`;
+            });
+
+            // after 1s, remove the divs
+            setTimeout(() => {
+                animationsContainer.innerHTML = '';
+            }, 1000);
+        });
+    </script>
+</body>
+
+</html>
