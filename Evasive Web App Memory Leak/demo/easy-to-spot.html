@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evasive Web App Memory Leak Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        #leakButton {
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+
+        #leakContainer {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 200px;
+            overflow-y: scroll;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Evasive Web App Memory Leak Demo</h1>
+    <button id="leakButton">Start Memory Leak</button>
+    <div id="leakContainer"></div>
+
+    <script>
+        const leakButton = document.getElementById('leakButton');
+        const leakContainer = document.getElementById('leakContainer');
+        let leakData = [];
+
+        leakButton.addEventListener('click', () => {
+            // Simulate a memory leak by creating a large array and keeping references to it
+            const newData = new Array(1000000).fill('This is a memory leak!');
+            leakData.push(newData); // Keep reference to the data to prevent garbage collection
+
+            // Display the current size of the leak data
+            const sizeInfo = `Current leak size: ${leakData.length * 1000000} items`;
+            const infoElement = document.createElement('p');
+            infoElement.textContent = sizeInfo;
+            leakContainer.appendChild(infoElement);
+        });
+    </script>
+</body>
+
+</html>
